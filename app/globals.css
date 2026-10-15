@@ -1,0 +1,99 @@
+:root {
+  --cor-fundo: #f4f8f4;
+  --cor-cartao: #ffffff;
+  --cor-texto: #1f2d25;
+  --cor-destaque: #2f855a;
+  --cor-destaque-hover: #276749;
+  --cor-borda: #cbd5ce;
+  --cor-resposta: #eef7f0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: Arial, Helvetica, sans-serif;
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+.pagina {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.cartao {
+  width: min(100%, 680px);
+  background: var(--cor-cartao);
+  border: 1px solid var(--cor-borda);
+  border-radius: 18px;
+  padding: 32px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+}
+
+h1 {
+  margin: 0 0 10px;
+  font-size: clamp(2.2rem, 7vw, 4.2rem);
+  line-height: 1;
+}
+
+.subtitulo {
+  margin: 0 0 28px;
+  font-size: 1.08rem;
+}
+
+.rotulo {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--cor-borda);
+  border-radius: 12px;
+  padding: 14px;
+  outline: none;
+}
+
+textarea:focus {
+  border-color: var(--cor-destaque);
+  box-shadow: 0 0 0 3px rgba(47, 133, 90, 0.15);
+}
+
+button {
+  margin-top: 16px;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 20px;
+  background: var(--cor-destaque);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--cor-destaque-hover);
+}
+
+.resposta {
+  min-height: 96px;
+  margin-top: 24px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--cor-resposta);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
