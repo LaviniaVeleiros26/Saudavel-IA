@@ -26,3 +26,5 @@ A página `/login` permite entrar e criar conta por e-mail e senha. Se a confirm
 Execute `npx playwright install chromium` uma vez e depois `npm run test:auth`. Se já houver Chromium instalado, informe seu caminho, por exemplo: `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:auth`.
 
 Os testes usam um provedor Supabase simulado localmente, nas portas 54321 e 3100, e cobrem proteção de rota, validações em português, confirmação pendente, persistência da sessão, saída e link de confirmação inválido. Não criam contas reais. O envio de e-mail e a autenticação no projeto real precisam ser verificados após configurar as variáveis.
+
+Se o login informar configuração incompleta, a mensagem lista apenas os **nomes** das variáveis ausentes na implantação atual, sem mostrar seus valores. Confira os nomes exatos na Vercel, o escopo Production/Preview e faça um novo deploy. Se ainda aparecer a mensagem antiga "O acesso ainda não está configurado", confira se abriu a implantação do commit mais recente. Para testar o diagnóstico localmente: `node --test tests/unit/supabase-config.test.mjs`.

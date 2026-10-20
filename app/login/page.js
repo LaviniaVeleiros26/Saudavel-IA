@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
 import LoginForm from "./login-form";
+import { getConfigurationError } from "../../lib/supabase/config.mjs";
 
 export default async function Login({ searchParams }) {
   const supabase = await createClient();
@@ -16,7 +17,7 @@ export default async function Login({ searchParams }) {
       <section className="cartao">
         <h1>Saudável IA</h1>
         <p className="subtitulo">Entre ou crie sua conta para continuar.</p>
-        <LoginForm confirmationError={params?.erro ? "Não foi possível confirmar seu e-mail. O link pode ter expirado ou já ter sido utilizado. Tente entrar ou solicite um novo cadastro." : null} />
+        <LoginForm configurationError={getConfigurationError()} confirmationError={params?.erro ? "Não foi possível confirmar seu e-mail. O link pode ter expirado ou já ter sido utilizado. Tente entrar ou solicite um novo cadastro." : null} />
       </section>
     </main>
   );

@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { authenticate } from "./actions";
 
-export default function LoginForm({ confirmationError }) {
+export default function LoginForm({ confirmationError, configurationError }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [state, action, pending] = useActionState(authenticate, {});
@@ -20,7 +20,7 @@ export default function LoginForm({ confirmationError }) {
       </div>
       <div aria-live="polite" aria-atomic="true">
         {pending && <p>Por favor, aguarde…</p>}
-        {(state.error || confirmationError) && <p className="erro" role="alert">{state.error || confirmationError}</p>}
+        {(state.error || configurationError || confirmationError) && <p className="erro" role="alert">{state.error || configurationError || confirmationError}</p>}
         {state.message && <p role="status">{state.message}</p>}
       </div>
     </form>

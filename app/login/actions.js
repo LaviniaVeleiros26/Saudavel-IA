@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
 import { authError } from "../../lib/supabase/errors";
+import { getConfigurationError } from "../../lib/supabase/config.mjs";
 
 export async function authenticate(previousState, formData) {
   const email = String(formData.get("email") || "").trim();
@@ -23,7 +24,7 @@ export async function authenticate(previousState, formData) {
 
   try {
     const supabase = await createClient();
-    if (!supabase) return { error: "O acesso ainda não está configurado. Entre em contato com a responsável pelo site." };
+    if (!supabase) return { error: getConfigurationError() };
 
     if (intent === "signup") {
       const origin = (await headers()).get("origin");

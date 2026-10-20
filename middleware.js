@@ -1,11 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
+import { getSupabaseConfiguration } from "./lib/supabase/config.mjs";
 
 export async function middleware(request) {
   let response = NextResponse.next({ request });
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return response;
+  const { url, key, missing } = getSupabaseConfiguration();
+  if (missing.length) return response;
 
   const supabase = createServerClient(url, key, {
     cookies: {
