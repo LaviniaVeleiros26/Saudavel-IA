@@ -17,7 +17,8 @@ module.exports = defineConfig({
     env: {
       NEXT_TELEMETRY_DISABLED: "1",
       NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: "public-test-key",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.AUTH_TEST_KEY_TYPE === "anon" ? "public-test-key" : "",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.AUTH_TEST_KEY_TYPE === "anon" ? "" : "sb_publishable_test-key",
     },
   },
 });
