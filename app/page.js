@@ -1,46 +1,23 @@
-"use client";
+export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { redirect } from "next/navigation";
+import { createClient } from "../lib/supabase/server";
+import Analisador from "./components/analisador";
+import SignOutButton from "./components/sign-out-button";
 
-const TEXTOS = {
-  titulo: "Saudável IA",
-  subtitulo: "Digite um texto abaixo e clique em Analisar.",
-  botao: "Analisar",
-};
-
-export default function Home() {
-  const [entrada, setEntrada] = useState("");
-  const [resposta, setResposta] = useState("");
-
-  function analisar() {
-    setResposta(entrada);
-  }
+export default async function Home() {
+  const supabase = await createClient();
+  if (!supabase) redirect("/login");
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   return (
-    <main className="pagina">
-      <section className="cartao">
-        <h1>{TEXTOS.titulo}</h1>
-        <p className="subtitulo">{TEXTOS.subtitulo}</p>
-
-        <label htmlFor="entrada" className="rotulo">
-          Seu texto
-        </label>
-        <textarea
-          id="entrada"
-          value={entrada}
-          onChange={(event) => setEntrada(event.target.value)}
-          placeholder="Escreva aqui..."
-          rows={6}
-        />
-
-        <button type="button" onClick={analisar}>
-          {TEXTOS.botao}
-        </button>
-
-        <div className="resposta" aria-live="polite">
-          {resposta}
-        </div>
-      </section>
-    </main>
+    <>
+      <header className="topo">
+        <span>{user.email}</span>
+        <SignOutButton />
+      </header>
+      <Analisador />
+    </>
   );
 }
