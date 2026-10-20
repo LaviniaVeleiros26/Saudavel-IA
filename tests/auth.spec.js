@@ -16,11 +16,19 @@ test.beforeAll(async () => {
     res.setHeader("Content-Type", "application/json");
     res.setHeader("X-Supabase-Api-Version", "2024-01-01");
     res.setHeader("Access-Control-Allow-Origin", "*");
+    if ((path.endsWith("/token") || path.endsWith("/signup")) && body.email === "chave-invalida@example.com") {
+      res.statusCode = 401;
+      return res.end(JSON.stringify({ message: "Invalid API key" }));
+    }
     if (path.endsWith("/token") && body.email === user.email && body.password === "senha-correta") {
       const encode = value => Buffer.from(JSON.stringify(value)).toString("base64url");
       const token = `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ sub: user.id, exp: Math.floor(Date.now() / 1000) + 3600, aud: "authenticated", session_id: randomUUID() })}.test-signature`;
       tokens.add(token);
       return res.end(JSON.stringify({ access_token: token, refresh_token: "test-refresh", token_type: "bearer", expires_in: 3600, user }));
+    }
+    if (path.endsWith("/signup") && body.email === "erro-confirmacao@example.com") {
+      res.statusCode = 500;
+      return res.end(JSON.stringify({ code: "unexpected_failure", msg: "Error sending confirmation email" }));
     }
     if (path.endsWith("/signup")) return res.end(JSON.stringify({ ...user, email: body.email, identities: [] }));
     const token = (req.headers.authorization || "").replace("Bearer ", "");
@@ -90,4 +98,31 @@ test("link de confirmação inválido apresenta mensagem em português", async (
   await page.goto("/auth/callback?code=invalido");
   await expect(page).toHaveURL(/\/login\?erro=confirmacao$/);
   await expect(page.locator("form").getByRole("alert")).toContainText("Não foi possível confirmar seu e-mail.");
+});
+
+
+test("chave rejeitada pelo provedor apresenta orientação em português", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel("E-mail", { exact: true }).fill("chave-invalida@example.com");
+  await page.getByLabel("Senha", { exact: true }).fill("senha-teste");
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await expect(page.locator("form").getByRole("alert")).toContainText("A chave pública do Supabase não foi aceita.");
+  await expect(page.locator("form").getByRole("alert")).toContainText("somente a chave");
+});
+
+
+test("cadastro com chave rejeitada apresenta orientação em português", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel("E-mail", { exact: true }).fill("chave-invalida@example.com");
+  await page.getByLabel("Senha", { exact: true }).fill("senha-teste");
+  await page.getByRole("button", { name: "Criar conta", exact: true }).click();
+  await expect(page.locator("form").getByRole("alert")).toContainText("A chave pública do Supabase não foi aceita.");
+});
+
+test("falha no envio de confirmação durante cadastro apresenta orientação em português", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel("E-mail", { exact: true }).fill("erro-confirmacao@example.com");
+  await page.getByLabel("Senha", { exact: true }).fill("senha-teste");
+  await page.getByRole("button", { name: "Criar conta", exact: true }).click();
+  await expect(page.locator("form").getByRole("alert")).toContainText("Não foi possível enviar o e-mail de confirmação.");
 });
