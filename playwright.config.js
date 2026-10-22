@@ -11,7 +11,10 @@ module.exports = defineConfig({
       : {},
   },
   webServer: {
-    command: "npm run dev -- --hostname 127.0.0.1 --port 3100",
+    command: process.env.AUTH_TEST_MODE === "production"
+      ? "npm run build && npm run start -- --hostname 127.0.0.1 --port 3100"
+      : "npm run dev -- --hostname 127.0.0.1 --port 3100",
+    timeout: 120000,
     url: "http://127.0.0.1:3100/login",
     reuseExistingServer: false,
     env: {

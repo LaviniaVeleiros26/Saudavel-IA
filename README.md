@@ -48,3 +48,9 @@ A tabela já criada no painel deve conter estas colunas (a grafia é importante)
 Mantenha RLS ativado e as políticas para o papel `authenticated`: SELECT com `USING (auth.uid() = user_id)` e INSERT com `WITH CHECK (auth.uid() = user_id)`. Não são necessárias políticas UPDATE/DELETE para este fluxo.
 
 Para validar no projeto real após o deploy: entre no site, digite um texto de teste e clique em Analisar. Aguarde **Análise salva com sucesso**, atualize a página e confirme o registro no histórico e no Table Editor do Supabase. Os testes automatizados usam um serviço simulado; não alteram dados do projeto real e não comprovam as políticas instaladas nele.
+
+## Runtime da Vercel
+
+O projeto usa Node.js **24.x**, definido em `package.json`. O middleware também usa o runtime `nodejs`: a versão instalada do cliente Supabase exige um construtor WebSocket ao inicializar, indisponível no runtime Edge da Vercel. O middleware continua renovando os cookies e a página principal continua verificando a identidade no servidor.
+
+Para reproduzir build e testes com a aplicação em produção e um Supabase simulado: `AUTH_TEST_MODE=production PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:auth`. Esse comando compila e inicia a aplicação com valores de teste; não use seu artefato `.next` em produção. O deploy da Vercel deve compilar com as variáveis do projeto real.
