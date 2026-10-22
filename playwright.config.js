@@ -19,6 +19,8 @@ module.exports = defineConfig({
     reuseExistingServer: false,
     env: {
       NEXT_TELEMETRY_DISABLED: "1",
+      OPENROUTER_API_KEY: "test-openrouter-key",
+      NODE_OPTIONS: `${process.env.NODE_OPTIONS || ""} --require "${require.resolve("./tests/mock-openrouter.cjs")}"`,
       NEXT_PUBLIC_SUPABASE_URL: process.env.AUTH_TEST_CONFIG === "invalid-url"
         ? "NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co"
         : "http://127.0.0.1:54321",

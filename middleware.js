@@ -24,4 +24,4 @@ export async function middleware(request) {
 }
 
 // The installed Supabase client requires native WebSocket support during initialization.
-export const config = { matcher: ["/", "/login"], runtime: "nodejs" };
+export const config = { matcher: ["/", "/login", "/historico"], runtime: "nodejs" };

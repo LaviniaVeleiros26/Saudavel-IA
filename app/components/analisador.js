@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { desafio } from "../../desafio";
 
-export default function Analisador({ analises = [], historyError }) {
-  const router = useRouter();
+export default function Analisador() {
   const [campos, setCampos] = useState(() => Object.fromEntries(desafio.campos.map(field => [field.id, ""])));
   const [pending, setPending] = useState(false);
   const [resposta, setResposta] = useState("");
@@ -35,7 +33,6 @@ export default function Analisador({ analises = [], historyError }) {
       }
       setResposta(text);
       setMensagem("Análise salva com sucesso.");
-      router.refresh();
     } catch {
       setErro("Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.");
     } finally {
@@ -68,25 +65,6 @@ export default function Analisador({ analises = [], historyError }) {
         {erro && <p className="erro" role="alert">{erro}</p>}
         {mensagem && <p role="status">{mensagem}</p>}
         <div className="resposta" aria-live="polite" aria-busy={pending}>{resposta}</div>
-      </section>
-      <section className="cartao historico" aria-labelledby="titulo-historico">
-        <h2 id="titulo-historico">Suas análises salvas</h2>
-        <p>Até 20 análises mais recentes.</p>
-        {historyError ? <p className="erro" role="alert">{historyError}</p> : (
-          analises.length ? (
-            <ol className="lista-analises">
-              {analises.map(analise => (
-                <li key={analise.id}>
-                  <p className="texto-salvo">{analise.texto}</p>
-                  <details>
-                    <summary>Ver resultado</summary>
-                    <p className="texto-salvo">{analise.resultado}</p>
-                  </details>
-                </li>
-              ))}
-            </ol>
-          ) : <p>Você ainda não tem análises salvas.</p>
-        )}
       </section>
     </main>
   );

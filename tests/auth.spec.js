@@ -36,36 +36,45 @@ test.beforeAll(async () => {
     if (path.endsWith("/signup")) return res.end(JSON.stringify({ ...user, email: body.email, identities: [] }));
     const token = (req.headers.authorization || "").replace("Bearer ", "");
     if (path.endsWith("/user") && tokens.has(token)) return res.end(JSON.stringify(tokens.get(token)));
-    if (path === "/rest/v1/planodesite") {
+    if (path === "/rest/v1/respostas") {
       const account = tokens.get(token);
       const url = new URL(req.url, "http://localhost");
       if (!account) {
         res.statusCode = 401;
         return res.end(JSON.stringify({ code: "42501" }));
       }
-      if (req.method === "GET" && url.searchParams.get("select") !== "id,texto:Texto,resultado,created_at") {
+      if (req.method === "GET" && url.searchParams.get("select") !== "id,entrada,resposta,created_at") {
         res.statusCode = 400;
         return res.end(JSON.stringify({ code: "PGRST204" }));
       }
       if (req.method === "POST") {
-        if (body.user_id !== account.id || body.Texto === "Simular falha de gravação") {
+        if (body.user_id !== account.id || body.entrada?.endsWith("Simular falha de gravação")) {
           res.statusCode = 403;
           return res.end(JSON.stringify({ code: "42501" }));
         }
-        if (!Object.hasOwn(body, "Texto") || Object.hasOwn(body, "texto")) {
+        if (typeof body.entrada !== "string" || typeof body.resposta !== "string") {
           res.statusCode = 400;
           return res.end(JSON.stringify({ code: "PGRST204" }));
         }
         const record = { id: records.length + 1, created_at: new Date().toISOString(), ...body };
         records.push(record);
         res.statusCode = 201;
-        return res.end(JSON.stringify({ id: record.id, created_at: record.created_at, texto: record.Texto, resultado: record.resultado }));
+        return res.end(JSON.stringify({ id: record.id, created_at: record.created_at, entrada: record.entrada, resposta: record.resposta }));
       }
       if (url.searchParams.get("user_id") !== `eq.${account.id}`) {
         res.statusCode = 403;
         return res.end(JSON.stringify({ code: "42501" }));
       }
-      return res.end(JSON.stringify(records.filter(record => record.user_id === account.id).slice(-20).reverse().map(record => ({ id: record.id, created_at: record.created_at, texto: record.Texto, resultado: record.resultado }))));
+      if (url.searchParams.get("order") !== "created_at.desc,id.desc") {
+        res.statusCode = 400;
+        return res.end(JSON.stringify({ code: "invalid_order" }));
+      }
+      const offset = Number(url.searchParams.get("offset") || 0);
+      const limit = Number(url.searchParams.get("limit") || 1000);
+      return res.end(JSON.stringify(records.filter(record => record.user_id === account.id)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at) || b.id - a.id)
+        .slice(offset, offset + limit)
+        .map(record => ({ id: record.id, created_at: record.created_at, entrada: record.entrada, resposta: record.resposta }))));
     }
     if (path.endsWith("/logout") && tokens.has(token)) {
       tokens.delete(token);
@@ -124,8 +133,9 @@ test("login persiste sessão, mostra o e-mail, permite análise e sair", async (
   await expect(page.locator(".resposta")).toContainText("VEREDITO: SUSPEITO");
   await expect(page.locator(".resposta")).toContainText("modo de teste");
   await expect(page.getByRole("status")).toContainText("Análise salva com sucesso.");
-  await page.reload();
-  await expect(page.getByRole("region", { name: "Suas análises salvas" })).toContainText("Olá, saúde!");
+  await page.getByRole("link", { name: "Meu histórico", exact: true }).click();
+  await expect(page).toHaveURL(/\/historico$/);
+  await expect(page.getByRole("region", { name: "Meu histórico" })).toContainText("Olá, saúde!");
   await page.getByRole("button", { name: "Sair", exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto("/");
@@ -180,16 +190,17 @@ test("cada conta consulta apenas seu histórico e o texto é exibido literalment
   await page.getByLabel("Cole aqui a mensagem que você recebeu", { exact: true }).fill(text);
   await page.getByRole("button", { name: "Analisar mensagem", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Análise salva com sucesso.");
-  await page.reload();
-  const history = page.getByRole("region", { name: "Suas análises salvas" });
+  await page.getByRole("link", { name: "Meu histórico", exact: true }).click();
+  const history = page.getByRole("region", { name: "Meu histórico" });
   await expect(history).toContainText(text);
   await expect(history.locator("em")).toHaveCount(0);
   const context = await browser.newContext();
   try {
     const otherPage = await context.newPage();
     await loginAs(otherPage, otherUser.email);
-    await expect(otherPage.getByRole("region", { name: "Suas análises salvas" })).not.toContainText(text);
-    await expect(otherPage.getByRole("region", { name: "Suas análises salvas" })).toContainText("Você ainda não tem análises salvas.");
+    await otherPage.getByRole("link", { name: "Meu histórico", exact: true }).click();
+    await expect(otherPage.getByRole("region", { name: "Meu histórico" })).not.toContainText(text);
+    await expect(otherPage.getByRole("region", { name: "Meu histórico" })).toContainText("Você ainda não tem respostas salvas nesta página.");
   } finally { await context.close(); }
 });
 
@@ -201,8 +212,8 @@ test("texto vazio e falha de gravação não produzem confirmação de sucesso",
   await page.getByRole("button", { name: "Analisar mensagem", exact: true }).click();
   await expect(page.locator("main").getByRole("alert")).toContainText("sua conta não tem permissão");
   await expect(page.getByRole("status")).toHaveCount(0);
-  await page.reload();
-  await expect(page.getByRole("region", { name: "Suas análises salvas" })).not.toContainText("Simular falha de gravação");
+  await page.goto("/historico");
+  await expect(page.getByRole("region", { name: "Meu histórico" })).not.toContainText("Simular falha de gravação");
 });
 
 
@@ -219,7 +230,8 @@ test("tela usa o desafio e API devolve texto puro somente para contas autenticad
   expect(response.headers()["content-type"]).toContain("text/plain");
   expect(await response.text()).toContain("modo de teste");
   expect(records.at(-1).user_id).toBe(user.id);
-  expect(records.at(-1).Texto).toBe("Solicitação suspeita");
+  expect(records.at(-1).entrada).toBe("Cole aqui a mensagem que você recebeu:\nSolicitação suspeita");
+  expect(records.at(-1).resposta).toContain("VEREDITO: SUSPEITO");
   const invalid = await page.request.post("/api/ia", { data: { mensagem: "x".repeat(20001) } });
   expect(invalid.status()).toBe(400);
 });
@@ -247,3 +259,36 @@ for (const [status, message] of [[429, "Você atingiu o limite de uso de hoje."]
     await expect(page.locator(".resposta")).toBeEmpty();
   });
 }
+
+
+test("histórico exige login e mostra data, hora e páginas da mais recente para a mais antiga", async ({ page, request }) => {
+  const unauthenticated = await request.get("/historico");
+  expect(new URL(unauthenticated.url()).pathname).toBe("/login");
+  for (let i = 0; i < 53; i++) {
+    records.push({
+      id: records.length + 1,
+      created_at: new Date(Date.UTC(2026, 9, 22, 13, i)).toISOString(),
+      user_id: otherUser.id,
+      entrada: `Campo: registro ${i}`,
+      resposta: `Resposta ${i}`,
+    });
+  }
+  await loginAs(page, otherUser.email);
+  await page.getByRole("link", { name: "Meu histórico", exact: true }).click();
+  const items = page.locator(".lista-analises > li");
+  await expect(items).toHaveCount(50);
+  await expect(items.first().locator(".entrada-salva")).toHaveText("Campo: registro 52");
+  await expect(items.first().locator(".resposta-salva")).toHaveText("Resposta 52");
+  await expect(items.first().locator("time")).toHaveAttribute("datetime", "2026-10-22T13:52:00.000Z");
+  await expect(items.first().locator("time")).toContainText("22/10/2026");
+  await expect(items.first().locator("time")).toContainText("10:52");
+  await page.getByRole("link", { name: "Próxima", exact: true }).click();
+  await expect(page).toHaveURL(/historico\?pagina=2$/);
+  await expect(items).toHaveCount(3);
+  await expect(items.first().locator(".entrada-salva")).toHaveText("Campo: registro 2");
+  await expect(page.getByRole("link", { name: "Próxima", exact: true })).toHaveCount(0);
+  await page.getByRole("link", { name: "Anterior", exact: true }).click();
+  await expect(items.first().locator(".entrada-salva")).toHaveText("Campo: registro 52");
+  await expect(page.locator("header")).toContainText(otherUser.email);
+  await expect(page.locator("header").getByRole("button", { name: "Sair", exact: true })).toBeVisible();
+});

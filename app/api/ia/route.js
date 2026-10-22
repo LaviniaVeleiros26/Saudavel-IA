@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { desafio } from "../../../desafio";
 import { createClient } from "../../../lib/supabase/server";
-import { IaError, validateFields, generateResponse } from "../../../lib/ia.mjs";
+import { IaError, validateFields, generateResponse, formatEntry } from "../../../lib/ia.mjs";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -25,18 +25,15 @@ export async function POST(request) {
     catch { return textResponse("Não foi possível ler os campos enviados. Tente novamente.", 400); }
     const fields = validateFields(desafio, values);
     const resultado = await generateResponse(desafio, fields, { apiKey: process.env.OPENROUTER_API_KEY });
-    const texto = desafio.campos.length === 1
-      ? fields[desafio.campos[0].id]
-      : desafio.campos.map(field => `${field.rotulo}:\n${fields[field.id]}`).join("\n\n");
-
-    const { error } = await supabase.from("planodesite").insert({ user_id: user.id, Texto: texto, resultado });
+    const entrada = formatEntry(desafio, fields);
+    const { error } = await supabase.from("respostas").insert({ user_id: user.id, entrada, resposta: resultado });
     if (error) {
       if (error.code === "42501") {
         return textResponse("Não foi possível salvar: sua conta não tem permissão para essa operação. Entre em contato com a responsável pelo site.", 403);
       }
       return textResponse("Não foi possível salvar sua análise. Tente novamente em instantes.", 502);
     }
-    revalidatePath("/");
+    revalidatePath("/historico");
     return textResponse(resultado);
   } catch (error) {
     if (error instanceof IaError) return textResponse(error.message, error.status);

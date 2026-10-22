@@ -1,12 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { desafio } from "../../desafio.js";
-import { IaError, validateFields, fillPrompt, generateResponse } from "../../lib/ia.mjs";
+import { IaError, validateFields, fillPrompt, generateResponse, formatEntry } from "../../lib/ia.mjs";
 
 const realConfig = { ...desafio, modoTeste: false };
 
 test("modo de teste retorna exemplo sem chave e sem chamar IA", async () => {
-  const response = await generateResponse(desafio, { mensagem: "teste" }, {
+  const response = await generateResponse({ ...desafio, modoTeste: true }, { mensagem: "teste" }, {
     fetchImpl() { throw new Error("A rede não deve ser chamada no modo de teste"); },
   });
   assert.ok(response.includes("VEREDITO: SUSPEITO"));
@@ -67,4 +67,11 @@ test("falhas de chave ausente, serviço, rede e resposta inválida são claras e
       return true;
     });
   }
+});
+
+
+test("entrada salva inclui todos os campos com seus rótulos, inclusive quando há somente um", () => {
+  assert.equal(formatEntry(desafio, { mensagem: "Mensagem suspeita" }), "Cole aqui a mensagem que você recebeu:\nMensagem suspeita");
+  const config = { campos: [{ id: "a", rotulo: "Primeiro" }, { id: "b", rotulo: "Segundo" }] };
+  assert.equal(formatEntry(config, { a: "Linha 1\nLinha 2", b: "Outro texto" }), "Primeiro:\nLinha 1\nLinha 2\n\nSegundo:\nOutro texto");
 });
