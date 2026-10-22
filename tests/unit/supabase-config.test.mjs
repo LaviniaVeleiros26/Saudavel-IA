@@ -48,3 +48,43 @@ test("configuração aceita chaves públicas modernas e legadas sem expor valore
     }
   }
 });
+
+
+test("URL inválida é diagnosticada antes de inicializar o SDK", async (t) => {
+  const names = [urlName, anonName, publishableName];
+  const original = Object.fromEntries(names.map(name => [name, process.env[name]]));
+  try {
+    process.env[publishableName] = "sb_publishable_test-value";
+    delete process.env[anonName];
+    for (const url of [
+      "NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co",
+      "example.supabase.co",
+      '"https://example.supabase.co"',
+      "https:example.supabase.co",
+      "ftp://example.supabase.co",
+      "https://",
+      "https://example invalid.supabase.co",
+    ]) {
+      await t.test(url, () => {
+        process.env[urlName] = url;
+        const config = getSupabaseConfiguration();
+        assert.deepEqual(config.missing, []);
+        assert.deepEqual(config.invalid, [urlName]);
+        const message = getConfigurationError();
+        assert.match(message, /NEXT_PUBLIC_SUPABASE_URL está inválida/);
+        assert.ok(!message.includes("example.supabase.co"));
+        assert.ok(!message.includes("sb_publishable_test-value"));
+      });
+    }
+    for (const url of ["https://example.supabase.co", "http://127.0.0.1:54321"]) {
+      process.env[urlName] = url;
+      assert.deepEqual(getSupabaseConfiguration().invalid, []);
+      assert.equal(getConfigurationError(), null);
+    }
+  } finally {
+    for (const [name, value] of Object.entries(original)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});

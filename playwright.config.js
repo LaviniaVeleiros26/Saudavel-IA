@@ -2,7 +2,7 @@ const { defineConfig } = require("@playwright/test");
 
 module.exports = defineConfig({
   testDir: "./tests",
-  testMatch: "**/*.spec.js",
+  testMatch: process.env.AUTH_TEST_CONFIG === "invalid-url" ? "**/invalid-config.spec.js" : "**/auth.spec.js",
   workers: 1,
   use: {
     baseURL: "http://127.0.0.1:3100",
@@ -19,7 +19,9 @@ module.exports = defineConfig({
     reuseExistingServer: false,
     env: {
       NEXT_TELEMETRY_DISABLED: "1",
-      NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
+      NEXT_PUBLIC_SUPABASE_URL: process.env.AUTH_TEST_CONFIG === "invalid-url"
+        ? "NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co"
+        : "http://127.0.0.1:54321",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.AUTH_TEST_KEY_TYPE === "anon" ? "public-test-key" : "",
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.AUTH_TEST_KEY_TYPE === "anon" ? "" : "sb_publishable_test-key",
     },

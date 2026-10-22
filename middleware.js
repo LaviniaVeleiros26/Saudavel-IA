@@ -4,8 +4,8 @@ import { getSupabaseConfiguration } from "./lib/supabase/config.mjs";
 
 export async function middleware(request) {
   let response = NextResponse.next({ request });
-  const { url, key, missing } = getSupabaseConfiguration();
-  if (missing.length) return response;
+  const { url, key, missing, invalid } = getSupabaseConfiguration();
+  if (missing.length || invalid.length) return response;
 
   const supabase = createServerClient(url, key, {
     cookies: {
