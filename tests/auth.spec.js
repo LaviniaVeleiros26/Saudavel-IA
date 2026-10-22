@@ -43,7 +43,7 @@ test.beforeAll(async () => {
         res.statusCode = 401;
         return res.end(JSON.stringify({ code: "42501" }));
       }
-      if (url.searchParams.get("select") !== "id,texto:Texto,resultado,created_at") {
+      if (req.method === "GET" && url.searchParams.get("select") !== "id,texto:Texto,resultado,created_at") {
         res.statusCode = 400;
         return res.end(JSON.stringify({ code: "PGRST204" }));
       }
@@ -85,7 +85,7 @@ test.afterAll(async () => { if (provider?.listening) await new Promise(resolve =
 test("visitantes são redirecionadas e recebem validação em português", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByLabel("Seu texto", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Cole aqui a mensagem que você recebeu", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(page.locator("form").getByRole("alert")).toHaveText("Informe um endereço de e-mail válido.");
   await page.getByLabel("E-mail", { exact: true }).fill(user.email);
@@ -119,9 +119,10 @@ test("login persiste sessão, mostra o e-mail, permite análise e sair", async (
   await expect(page.locator("header")).toContainText(user.email);
   await page.goto("/login");
   await expect(page).toHaveURL("http://127.0.0.1:3100/");
-  await page.getByLabel("Seu texto", { exact: true }).fill("Olá, saúde!");
-  await page.getByRole("button", { name: "Analisar", exact: true }).click();
-  await expect(page.locator(".resposta")).toHaveText("Olá, saúde!");
+  await page.getByLabel("Cole aqui a mensagem que você recebeu", { exact: true }).fill("Olá, saúde!");
+  await page.getByRole("button", { name: "Analisar mensagem", exact: true }).click();
+  await expect(page.locator(".resposta")).toContainText("VEREDITO: SUSPEITO");
+  await expect(page.locator(".resposta")).toContainText("modo de teste");
   await expect(page.getByRole("status")).toContainText("Análise salva com sucesso.");
   await page.reload();
   await expect(page.getByRole("region", { name: "Suas análises salvas" })).toContainText("Olá, saúde!");
@@ -176,8 +177,8 @@ async function loginAs(page, email) {
 test("cada conta consulta apenas seu histórico e o texto é exibido literalmente", async ({ page, browser }) => {
   await loginAs(page, user.email);
   const text = `Texto particular ${randomUUID()}\n<em>Texto literal</em>`;
-  await page.getByLabel("Seu texto", { exact: true }).fill(text);
-  await page.getByRole("button", { name: "Analisar", exact: true }).click();
+  await page.getByLabel("Cole aqui a mensagem que você recebeu", { exact: true }).fill(text);
+  await page.getByRole("button", { name: "Analisar mensagem", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Análise salva com sucesso.");
   await page.reload();
   const history = page.getByRole("region", { name: "Suas análises salvas" });
@@ -194,12 +195,55 @@ test("cada conta consulta apenas seu histórico e o texto é exibido literalment
 
 test("texto vazio e falha de gravação não produzem confirmação de sucesso", async ({ page }) => {
   await loginAs(page, user.email);
-  await page.getByRole("button", { name: "Analisar", exact: true }).click();
-  await expect(page.locator("main").getByRole("alert")).toHaveText("Digite um texto antes de analisar.");
-  await page.getByLabel("Seu texto", { exact: true }).fill("Simular falha de gravação");
-  await page.getByRole("button", { name: "Analisar", exact: true }).click();
+  await page.getByRole("button", { name: "Analisar mensagem", exact: true }).click();
+  await expect(page.locator("main").getByRole("alert")).toHaveText("Preencha o campo: Cole aqui a mensagem que você recebeu.");
+  await page.getByLabel("Cole aqui a mensagem que você recebeu", { exact: true }).fill("Simular falha de gravação");
+  await page.getByRole("button", { name: "Analisar mensagem", exact: true }).click();
   await expect(page.locator("main").getByRole("alert")).toContainText("sua conta não tem permissão");
   await expect(page.getByRole("status")).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole("region", { name: "Suas análises salvas" })).not.toContainText("Simular falha de gravação");
 });
+
+
+test("tela usa o desafio e API devolve texto puro somente para contas autenticadas", async ({ page, request }) => {
+  const denied = await request.post("/api/ia", { data: { mensagem: "Uma mensagem" } });
+  expect(denied.status()).toBe(403);
+  await loginAs(page, user.email);
+  await expect(page.getByRole("heading", { name: "Isso é golpe?", exact: true })).toBeVisible();
+  await expect(page.getByText("Cole a mensagem suspeita e descubra em segundos", { exact: true })).toBeVisible();
+  await expect(page.locator("textarea")).toHaveAttribute("rows", "6");
+  await expect(page.locator(".aviso")).toContainText("O que você digitar fica guardado na sua conta");
+  const response = await page.request.post("/api/ia", { data: { mensagem: "Solicitação suspeita", modoTeste: false, modelo: "outro-modelo", user_id: otherUser.id } });
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toContain("text/plain");
+  expect(await response.text()).toContain("modo de teste");
+  expect(records.at(-1).user_id).toBe(user.id);
+  expect(records.at(-1).Texto).toBe("Solicitação suspeita");
+  const invalid = await page.request.post("/api/ia", { data: { mensagem: "x".repeat(20001) } });
+  expect(invalid.status()).toBe(400);
+});
+
+for (const [status, message] of [[429, "Você atingiu o limite de uso de hoje."], [401, "Chave da IA inválida."], [502, "Não foi possível analisar a mensagem. Tente novamente em instantes."]]) {
+  test(`botão aguarda a API e exibe erro ${status} em português`, async ({ page }) => {
+    await loginAs(page, user.email);
+    let release;
+    let received;
+    const gate = new Promise(resolve => { release = resolve; });
+    const sent = new Promise(resolve => { received = resolve; });
+    await page.route("**/api/ia", async route => {
+      received();
+      await gate;
+      await route.fulfill({ status, contentType: "application/json", body: JSON.stringify({ error: "upstream error" }) });
+    });
+    await page.getByLabel("Cole aqui a mensagem que você recebeu", { exact: true }).fill("Uma mensagem");
+    await page.getByRole("button", { name: "Analisar mensagem", exact: true }).click();
+    await sent;
+    const pending = page.getByRole("button", { name: "Analisando...", exact: true });
+    await expect(pending).toBeDisabled();
+    release();
+    await expect(page.locator("main").getByRole("alert")).toHaveText(message);
+    await expect(page.getByRole("button", { name: "Analisar mensagem", exact: true })).toBeEnabled();
+    await expect(page.locator(".resposta")).toBeEmpty();
+  });
+}

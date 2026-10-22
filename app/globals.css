@@ -135,3 +135,6 @@ button:disabled { opacity: 0.65; cursor: wait; }
 .lista-analises li { padding: 12px 0; border-bottom: 1px solid var(--cor-borda); }
 .texto-salvo { white-space: pre-wrap; overflow-wrap: anywhere; }
 .historico summary { cursor: pointer; color: var(--cor-destaque); }
+
+.aviso { font-size: 0.85rem; line-height: 1.5; white-space: pre-line; }
+.campo-desafio + .campo-desafio { margin-top: 20px; }

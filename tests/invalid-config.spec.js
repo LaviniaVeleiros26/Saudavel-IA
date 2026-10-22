@@ -7,7 +7,7 @@ for (const button of ["Entrar", "Criar conta"]) {
     const response = await page.goto("/");
     expect(response.status()).toBe(200);
     await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByLabel("Seu texto", { exact: true })).toHaveCount(0);
+    await expect(page.getByLabel("Cole aqui a mensagem que você recebeu", { exact: true })).toHaveCount(0);
     const alert = page.locator("form").getByRole("alert");
     await expect(alert).toContainText("NEXT_PUBLIC_SUPABASE_URL está inválida.");
     await page.getByLabel("E-mail", { exact: true }).fill("teste@example.com");

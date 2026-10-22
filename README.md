@@ -10,7 +10,7 @@ Projeto Next.js com App Router e JavaScript, preparado para publicação na Verc
    npm run dev
 3. Abra http://localhost:3000
 
-As cores ficam no topo de `app/globals.css` e os textos principais ficam no objeto `TEXTOS` em `app/components/analisador.js`.
+As cores ficam no topo de `app/globals.css` e o título, os campos, o aviso e a configuração de IA ficam em `desafio.js`.
 
 ## Login com Supabase
 
@@ -33,7 +33,7 @@ Os testes de navegador usam a variável publishable por padrão. Para validar a 
 
 ## Textos e resultados salvos
 
-O botão **Analisar** salva o texto e o resultado na tabela `public.planodesite`. O servidor verifica a usuária logada e preenche `user_id` com seu identificador. A página exibe até 20 registros recentes dessa usuária e mantém o histórico após atualizar. Uma falha na gravação mostra uma mensagem em português sem confirmar sucesso. A função de análise atual continua retornando o texto digitado; não há integração com um modelo de IA.
+O botão **Analisar mensagem** salva o texto e o resultado na tabela `public.planodesite`. O servidor verifica a usuária logada e preenche `user_id` com seu identificador. A página exibe até 20 registros recentes dessa usuária e mantém o histórico após atualizar. Uma falha na gravação mostra uma mensagem em português sem confirmar sucesso. A análise usa a rota de servidor `/api/ia`; com `modoTeste: true` em `desafio.js`, retorna um exemplo identificado como teste, sem chamar a OpenRouter.
 
 A tabela já criada no painel deve conter estas colunas (a grafia é importante):
 
@@ -47,7 +47,7 @@ A tabela já criada no painel deve conter estas colunas (a grafia é importante)
 
 Mantenha RLS ativado e as políticas para o papel `authenticated`: SELECT com `USING (auth.uid() = user_id)` e INSERT com `WITH CHECK (auth.uid() = user_id)`. Não são necessárias políticas UPDATE/DELETE para este fluxo.
 
-Para validar no projeto real após o deploy: entre no site, digite um texto de teste e clique em Analisar. Aguarde **Análise salva com sucesso**, atualize a página e confirme o registro no histórico e no Table Editor do Supabase. Os testes automatizados usam um serviço simulado; não alteram dados do projeto real e não comprovam as políticas instaladas nele.
+Para validar no projeto real após o deploy: entre no site, digite um texto de teste e clique em Analisar mensagem. Aguarde **Análise salva com sucesso**, atualize a página e confirme o registro no histórico e no Table Editor do Supabase. Os testes automatizados usam um serviço simulado; não alteram dados do projeto real e não comprovam as políticas instaladas nele.
 
 ## Runtime da Vercel
 
@@ -56,3 +56,14 @@ O projeto usa Node.js **24.x**, definido em `package.json`. O middleware também
 Para reproduzir build e testes com a aplicação em produção e um Supabase simulado: `AUTH_TEST_MODE=production PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:auth`. Esse comando compila e inicia a aplicação com valores de teste; não use seu artefato `.next` em produção. O deploy da Vercel deve compilar com as variáveis do projeto real.
 
 Se os registros da Vercel mostrarem `Invalid supabaseUrl`, edite `NEXT_PUBLIC_SUPABASE_URL`: o campo Valor deve conter somente a URL completa HTTP/HTTPS do projeto, sem `NEXT_PUBLIC_SUPABASE_URL=`, sem aspas e sem a chave pública. A aplicação valida esse formato antes de inicializar o Supabase e mostra uma orientação em português sem liberar acesso à página principal. O cenário de configuração inválida pode ser verificado com `AUTH_TEST_MODE=production AUTH_TEST_CONFIG=invalid-url PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:auth`.
+
+
+## Desafio “Isso é golpe?” e OpenRouter
+
+`desafio.js` define `nome`, `subtitulo`, `botao`, `campos`, `aviso`, `prompt`, `modelo` e `modoTeste`. Cada campo gera um textarea e seu valor substitui `{id}` no prompt, sem substituições recursivas. As quebras de linha do aviso são representadas por `\n` para manter a string JavaScript válida.
+
+O formulário chama `POST /api/ia` com um objeto JSON de campos, por exemplo `{ "mensagem": "mensagem recebida" }`. A rota exige uma sessão válida, valida até 20.000 caracteres no total, usa somente a configuração de servidor e devolve `text/plain` sem JSON. A resposta e os campos são salvos na conta antes de confirmar sucesso; o histórico é atualizado. Login e cabeçalho continuam os mesmos.
+
+O modo de teste está ligado e não precisa de chave da IA. Para chamar a IA real, configure **OPENROUTER_API_KEY** nas variáveis do projeto da Vercel (ou `.env.local` para desenvolvimento), mude `modoTeste` para `false` e publique um novo deploy. A chave fica apenas no servidor; nunca use prefixo `NEXT_PUBLIC_` para ela. A chamada usa `https://openrouter.ai/api/v1/chat/completions`, o modelo definido no arquivo e `max_tokens: 900`. A rota preserva os status 401 e 429 e traduz as mensagens. Limites e créditos reais são administrados pela OpenRouter; a aplicação não implementa um contador diário próprio.
+
+Os testes unitários de IA rodam com `node --test tests/unit/ia.test.mjs` e simulam as respostas da OpenRouter, incluindo erros; nenhuma chamada real é feita. Os testes de navegador em produção cobrem o modo de teste, o salvamento, o histórico por conta, o estado do botão e as mensagens 401/429.
