@@ -30,3 +30,21 @@ Os testes usam um provedor Supabase simulado localmente, nas portas 54321 e 3100
 Se o login informar configuração incompleta, a mensagem lista apenas os **nomes** das variáveis ausentes na implantação atual, sem mostrar seus valores. Confira os nomes exatos na Vercel, o escopo Production/Preview e faça um novo deploy. Se ainda aparecer a mensagem antiga "O acesso ainda não está configurado", confira se abriu a implantação do commit mais recente. Para testar o diagnóstico localmente: `node --test tests/unit/supabase-config.test.mjs`.
 
 Os testes de navegador usam a variável publishable por padrão. Para validar a compatibilidade legada, execute `AUTH_TEST_KEY_TYPE=anon npm run test:auth` (adicione `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` se necessário).
+
+## Textos e resultados salvos
+
+O botão **Analisar** salva o texto e o resultado na tabela `public.planodesite`. O servidor verifica a usuária logada e preenche `user_id` com seu identificador. A página exibe até 20 registros recentes dessa usuária e mantém o histórico após atualizar. Uma falha na gravação mostra uma mensagem em português sem confirmar sucesso. A função de análise atual continua retornando o texto digitado; não há integração com um modelo de IA.
+
+A tabela já criada no painel deve conter estas colunas (a grafia é importante):
+
+| Coluna | Tipo | Configuração |
+| --- | --- | --- |
+| `id` | `int8` | Chave primária com identidade automática |
+| `created_at` | `timestamptz` | Padrão `now()` |
+| `user_id` | `uuid` | Padrão `auth.uid()`; o código também envia o ID validado |
+| `Texto` | `text` | T maiúsculo, conforme a tabela existente |
+| `resultado` | `text` | Resultado da análise |
+
+Mantenha RLS ativado e as políticas para o papel `authenticated`: SELECT com `USING (auth.uid() = user_id)` e INSERT com `WITH CHECK (auth.uid() = user_id)`. Não são necessárias políticas UPDATE/DELETE para este fluxo.
+
+Para validar no projeto real após o deploy: entre no site, digite um texto de teste e clique em Analisar. Aguarde **Análise salva com sucesso**, atualize a página e confirme o registro no histórico e no Table Editor do Supabase. Os testes automatizados usam um serviço simulado; não alteram dados do projeto real e não comprovam as políticas instaladas nele.

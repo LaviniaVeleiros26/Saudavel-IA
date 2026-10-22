@@ -128,3 +128,10 @@ button:disabled { opacity: 0.65; cursor: wait; }
 .topo span { overflow-wrap: anywhere; min-width: 0; }
 .topo button { margin-top: 0; }
 .pagina-autenticada { min-height: calc(100vh - 80px); }
+
+.pagina-autenticada { align-content: start; gap: 24px; }
+.historico h2 { margin-top: 0; }
+.lista-analises { padding-left: 24px; }
+.lista-analises li { padding: 12px 0; border-bottom: 1px solid var(--cor-borda); }
+.texto-salvo { white-space: pre-wrap; overflow-wrap: anywhere; }
+.historico summary { cursor: pointer; color: var(--cor-destaque); }

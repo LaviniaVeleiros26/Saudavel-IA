@@ -4,7 +4,9 @@ const { randomUUID } = require("node:crypto");
 
 // Simulates the provider boundary; these tests never contact a real Supabase project.
 const user = { id: "11111111-1111-4111-8111-111111111111", email: "teste@example.com", aud: "authenticated", role: "authenticated", app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() };
-const tokens = new Set();
+const otherUser = { ...user, id: "22222222-2222-4222-8222-222222222222", email: "outra@example.com" };
+const tokens = new Map();
+const records = [];
 let provider;
 
 test.beforeAll(async () => {
@@ -20,11 +22,12 @@ test.beforeAll(async () => {
       res.statusCode = 401;
       return res.end(JSON.stringify({ message: "Invalid API key" }));
     }
-    if (path.endsWith("/token") && body.email === user.email && body.password === "senha-correta") {
+    if (path.endsWith("/token") && [user.email, otherUser.email].includes(body.email) && body.password === "senha-correta") {
+      const account = body.email === user.email ? user : otherUser;
       const encode = value => Buffer.from(JSON.stringify(value)).toString("base64url");
-      const token = `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ sub: user.id, exp: Math.floor(Date.now() / 1000) + 3600, aud: "authenticated", session_id: randomUUID() })}.test-signature`;
-      tokens.add(token);
-      return res.end(JSON.stringify({ access_token: token, refresh_token: "test-refresh", token_type: "bearer", expires_in: 3600, user }));
+      const token = `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ sub: account.id, exp: Math.floor(Date.now() / 1000) + 3600, aud: "authenticated", session_id: randomUUID() })}.test-signature`;
+      tokens.set(token, account);
+      return res.end(JSON.stringify({ access_token: token, refresh_token: "test-refresh", token_type: "bearer", expires_in: 3600, user: account }));
     }
     if (path.endsWith("/signup") && body.email === "erro-confirmacao@example.com") {
       res.statusCode = 500;
@@ -32,7 +35,38 @@ test.beforeAll(async () => {
     }
     if (path.endsWith("/signup")) return res.end(JSON.stringify({ ...user, email: body.email, identities: [] }));
     const token = (req.headers.authorization || "").replace("Bearer ", "");
-    if (path.endsWith("/user") && tokens.has(token)) return res.end(JSON.stringify(user));
+    if (path.endsWith("/user") && tokens.has(token)) return res.end(JSON.stringify(tokens.get(token)));
+    if (path === "/rest/v1/planodesite") {
+      const account = tokens.get(token);
+      const url = new URL(req.url, "http://localhost");
+      if (!account) {
+        res.statusCode = 401;
+        return res.end(JSON.stringify({ code: "42501" }));
+      }
+      if (url.searchParams.get("select") !== "id,texto:Texto,resultado,created_at") {
+        res.statusCode = 400;
+        return res.end(JSON.stringify({ code: "PGRST204" }));
+      }
+      if (req.method === "POST") {
+        if (body.user_id !== account.id || body.Texto === "Simular falha de gravação") {
+          res.statusCode = 403;
+          return res.end(JSON.stringify({ code: "42501" }));
+        }
+        if (!Object.hasOwn(body, "Texto") || Object.hasOwn(body, "texto")) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ code: "PGRST204" }));
+        }
+        const record = { id: records.length + 1, created_at: new Date().toISOString(), ...body };
+        records.push(record);
+        res.statusCode = 201;
+        return res.end(JSON.stringify({ id: record.id, created_at: record.created_at, texto: record.Texto, resultado: record.resultado }));
+      }
+      if (url.searchParams.get("user_id") !== `eq.${account.id}`) {
+        res.statusCode = 403;
+        return res.end(JSON.stringify({ code: "42501" }));
+      }
+      return res.end(JSON.stringify(records.filter(record => record.user_id === account.id).slice(-20).reverse().map(record => ({ id: record.id, created_at: record.created_at, texto: record.Texto, resultado: record.resultado }))));
+    }
     if (path.endsWith("/logout") && tokens.has(token)) {
       tokens.delete(token);
       res.statusCode = 204;
@@ -88,6 +122,9 @@ test("login persiste sessão, mostra o e-mail, permite análise e sair", async (
   await page.getByLabel("Seu texto", { exact: true }).fill("Olá, saúde!");
   await page.getByRole("button", { name: "Analisar", exact: true }).click();
   await expect(page.locator(".resposta")).toHaveText("Olá, saúde!");
+  await expect(page.getByRole("status")).toContainText("Análise salva com sucesso.");
+  await page.reload();
+  await expect(page.getByRole("region", { name: "Suas análises salvas" })).toContainText("Olá, saúde!");
   await page.getByRole("button", { name: "Sair", exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto("/");
@@ -125,4 +162,44 @@ test("falha no envio de confirmação durante cadastro apresenta orientação em
   await page.getByLabel("Senha", { exact: true }).fill("senha-teste");
   await page.getByRole("button", { name: "Criar conta", exact: true }).click();
   await expect(page.locator("form").getByRole("alert")).toContainText("Não foi possível enviar o e-mail de confirmação.");
+});
+
+
+async function loginAs(page, email) {
+  await page.goto("/login");
+  await page.getByLabel("E-mail", { exact: true }).fill(email);
+  await page.getByLabel("Senha", { exact: true }).fill("senha-correta");
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await expect(page).toHaveURL("http://127.0.0.1:3100/");
+}
+
+test("cada conta consulta apenas seu histórico e o texto é exibido literalmente", async ({ page, browser }) => {
+  await loginAs(page, user.email);
+  const text = `Texto particular ${randomUUID()}\n<em>Texto literal</em>`;
+  await page.getByLabel("Seu texto", { exact: true }).fill(text);
+  await page.getByRole("button", { name: "Analisar", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Análise salva com sucesso.");
+  await page.reload();
+  const history = page.getByRole("region", { name: "Suas análises salvas" });
+  await expect(history).toContainText(text);
+  await expect(history.locator("em")).toHaveCount(0);
+  const context = await browser.newContext();
+  try {
+    const otherPage = await context.newPage();
+    await loginAs(otherPage, otherUser.email);
+    await expect(otherPage.getByRole("region", { name: "Suas análises salvas" })).not.toContainText(text);
+    await expect(otherPage.getByRole("region", { name: "Suas análises salvas" })).toContainText("Você ainda não tem análises salvas.");
+  } finally { await context.close(); }
+});
+
+test("texto vazio e falha de gravação não produzem confirmação de sucesso", async ({ page }) => {
+  await loginAs(page, user.email);
+  await page.getByRole("button", { name: "Analisar", exact: true }).click();
+  await expect(page.locator("main").getByRole("alert")).toHaveText("Digite um texto antes de analisar.");
+  await page.getByLabel("Seu texto", { exact: true }).fill("Simular falha de gravação");
+  await page.getByRole("button", { name: "Analisar", exact: true }).click();
+  await expect(page.locator("main").getByRole("alert")).toContainText("sua conta não tem permissão");
+  await expect(page.getByRole("status")).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("region", { name: "Suas análises salvas" })).not.toContainText("Simular falha de gravação");
 });
