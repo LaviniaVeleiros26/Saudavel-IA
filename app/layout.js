@@ -17,7 +17,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR" className={lora.variable}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <footer className="rodape-site">Feito por Larissa , Lavínia  e Raissa  · Do Zero ao Ar · Afesu Veleiros 2026</footer>
+      </body>
     </html>
   );
 }

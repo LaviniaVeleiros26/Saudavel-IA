@@ -166,3 +166,5 @@ button:disabled { opacity: 0.65; cursor: wait; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; }
 }
+
+.rodape-site { padding: 20px 16px 28px; color: var(--cor-suave); font-size: 0.8rem; line-height: 1.7; text-align: center; }
