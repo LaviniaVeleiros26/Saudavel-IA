@@ -3,6 +3,21 @@
 import { useState } from "react";
 import { desafio } from "../../desafio";
 
+const exemplos = [
+  {
+    nome: "SMS do banco",
+    mensagem: "BANCO EXEMPLO: detectamos uma compra de R$ 2.480,00 no seu cartão. Se não foi você, acesse https://banco-exemplo.invalid/seguranca e informe sua senha e o código recebido por SMS em até 10 minutos para bloquear a compra.",
+  },
+  {
+    nome: "Prêmio",
+    mensagem: "PARABÉNS! Seu número ganhou R$ 10.000,00 em nosso sorteio. Para receber hoje, pague uma taxa de R$ 49,90 por Pix e envie os dados do seu cartão em https://premio-exemplo.invalid/resgatar. Você tem apenas 30 minutos!",
+  },
+  {
+    nome: "Entrega dos Correios",
+    mensagem: "CORREIOS: sua encomenda está retida por uma taxa pendente de R$ 18,90. Pague por Pix em https://entrega-exemplo.invalid/liberar e confirme seu CPF e os dados do cartão ainda hoje, ou o pacote será devolvido.",
+  },
+];
+
 export default function Analisador() {
   const [campos, setCampos] = useState(() => Object.fromEntries(desafio.campos.map(field => [field.id, ""])));
   const [pending, setPending] = useState(false);
@@ -62,6 +77,20 @@ export default function Analisador() {
                 value={campos[field.id]}
                 onChange={event => setCampos(previous => ({ ...previous, [field.id]: event.target.value }))}
               />
+              {field.id === "mensagem" && (
+                <div className="exemplos-mensagem" role="group" aria-label="Mensagens fictícias para testar">
+                  {exemplos.map(exemplo => (
+                    <button
+                      key={exemplo.nome}
+                      type="button"
+                      disabled={pending}
+                      onClick={() => setCampos(previous => ({ ...previous, [field.id]: exemplo.mensagem }))}
+                    >
+                      {exemplo.nome}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           <button className="botao-analise" type="submit" disabled={pending}>
