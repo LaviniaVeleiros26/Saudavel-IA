@@ -222,7 +222,7 @@ test("tela usa o desafio e API devolve texto puro somente para contas autenticad
   expect(denied.status()).toBe(403);
   await loginAs(page, user.email);
   await expect(page.getByRole("heading", { name: "Isso é golpe?", exact: true })).toBeVisible();
-  await expect(page.getByText("Cole a mensagem suspeita e descubra em segundos", { exact: true })).toBeVisible();
+  await expect(page.getByText("Um espaço para suas dúvidas sobre uma vida mais saudável.", { exact: true })).toBeVisible();
   await expect(page.locator("textarea")).toHaveAttribute("rows", "6");
   await expect(page.locator(".aviso")).toContainText("O que você digitar fica guardado na sua conta");
   const response = await page.request.post("/api/ia", { data: { mensagem: "Solicitação suspeita", modoTeste: false, modelo: "outro-modelo", user_id: otherUser.id } });
